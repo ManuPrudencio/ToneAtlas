@@ -10,6 +10,9 @@ app = FastAPI(
 SONGS = [
     {"id": 1, "title": "Wish You Were Here", "artist": "Pink Floyd", "year": 1975},
     {"id": 2, "title": "Californication", "artist": "Red Hot Chili Peppers", "year": 1999},
+    {"id": 3, "title": "Bohemian Rhapsody", "artist": "Queen", "year": 1975},
+    {"id": 4, "title": "Hotel California", "artist": "Eagles", "year": 1976},
+    {"id": 5, "title": "Smells Like Teen Spirit", "artist": "Nirvana", "year": 1991},
 ]
 
 
