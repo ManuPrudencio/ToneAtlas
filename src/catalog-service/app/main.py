@@ -8,7 +8,7 @@ from sqlalchemy import Integer, String, create_engine, or_, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./catalog.db")
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 
 class Base(DeclarativeBase):
