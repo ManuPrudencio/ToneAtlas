@@ -2,12 +2,16 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+import httpx
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import Integer, String, create_engine, or_, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./catalog.db")
+MUSICBRAINZ_URL = "https://musicbrainz.org/ws/2/recording"
+USER_AGENT = "ToneAtlas/0.3 (university project)"
+
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 
@@ -19,6 +23,7 @@ class Song(Base):
     __tablename__ = "songs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mbid: Mapped[Optional[str]] = mapped_column(String(36), unique=True, nullable=True)
     title: Mapped[str] = mapped_column(String(300))
     artist: Mapped[str] = mapped_column(String(300))
     album: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
@@ -27,6 +32,7 @@ class Song(Base):
 
 class SongOut(BaseModel):
     id: int
+    mbid: Optional[str] = None
     title: str
     artist: str
     album: Optional[str] = None
@@ -53,8 +59,8 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="ToneAtlas catalog service",
-    description="Catálogo de canciones de ToneAtlas.",
-    version="0.2.0",
+    description="Catálogo de canciones de ToneAtlas, con datos de MusicBrainz.",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -94,3 +100,41 @@ def seed_songs():
                 created += 1
         session.commit()
     return {"created": created}
+
+
+def parse_recording(rec: dict) -> dict:
+    credit = rec.get("artist-credit") or []
+    release = (rec.get("releases") or [{}])[0]
+    date = rec.get("first-release-date") or release.get("date") or ""
+    return {
+        "mbid": rec["id"],
+        "title": rec["title"],
+        "artist": credit[0].get("name", "Unknown") if credit else "Unknown",
+        "album": release.get("title"),
+        "year": int(date[:4]) if date[:4].isdigit() else None,
+    }
+
+
+@app.post("/songs/import")
+def import_from_musicbrainz(query: str = Query(..., min_length=2)):
+    try:
+        response = httpx.get(
+            MUSICBRAINZ_URL,
+            params={"query": query, "fmt": "json", "limit": 10},
+            headers={"User-Agent": USER_AGENT},
+            timeout=15,
+        )
+        response.raise_for_status()
+        recordings = response.json().get("recordings", [])
+    except (httpx.HTTPError, ValueError) as error:
+        raise HTTPException(status_code=502, detail=f"MusicBrainz is not reachable: {error}")
+
+    created = 0
+    with Session(engine) as session:
+        for rec in recordings:
+            data = parse_recording(rec)
+            if session.scalar(select(Song).where(Song.mbid == data["mbid"])) is None:
+                session.add(Song(**data))
+                created += 1
+        session.commit()
+    return {"found": len(recordings), "created": created}
