@@ -1,5 +1,5 @@
 import express from 'express';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const MONGO_URL = process.env.MONGO_URL ?? 'mongodb://localhost:27017';
@@ -17,8 +17,52 @@ const client = new MongoClient(MONGO_URL);
 await client.connect();
 const db = client.db(DB_NAME);
 const amps = db.collection('amps');
+const presets = db.collection('presets');
 
 const serialize = ({ _id, ...rest }) => ({ id: _id.toString(), ...rest });
+const isValidId = (value) => typeof value === 'string' && value.length === 24 && ObjectId.isValid(value);
+
+async function buildPreset(body) {
+  const { song_id, song_title, song_artist = '', amp_id, settings, notes = '', rating = null } = body ?? {};
+
+  if (!Number.isInteger(song_id) || song_id < 1) return { error: 'song_id must be a positive integer' };
+  if (typeof song_title !== 'string' || !song_title.trim()) return { error: 'song_title is required' };
+  if (!isValidId(amp_id)) return { error: 'amp_id is not valid' };
+
+  const amp = await amps.findOne({ _id: new ObjectId(amp_id) });
+  if (!amp) return { error: 'amp_id does not exist' };
+
+  if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) {
+    return { error: 'settings must be an object like {"gain": 5}' };
+  }
+  const cleanSettings = {};
+  for (const control of amp.controls) {
+    const value = settings[control];
+    if (value === undefined) continue;
+    if (typeof value !== 'number' || value < 0 || value > 10) {
+      return { error: `settings.${control} must be a number between 0 and 10` };
+    }
+    cleanSettings[control] = value;
+  }
+
+  if (typeof notes !== 'string' || notes.length > 500) return { error: 'notes must be text up to 500 characters' };
+  if (rating !== null && !(Number.isInteger(rating) && rating >= 1 && rating <= 5)) {
+    return { error: 'rating must be an integer from 1 to 5' };
+  }
+
+  return {
+    preset: {
+      song_id,
+      song_title: song_title.trim(),
+      song_artist: String(song_artist).trim(),
+      amp_id,
+      amp_name: `${amp.brand} ${amp.model}`,
+      settings: cleanSettings,
+      notes,
+      rating,
+    },
+  };
+}
 
 const app = express();
 app.use(express.json());
@@ -36,14 +80,10 @@ app.post('/amps/seed', async (req, res) => {
   let created = 0;
   for (const amp of SAMPLE_AMPS) {
     const exists = await amps.findOne({ brand: amp.brand, model: amp.model });
-    if (!exists) {
-      await amps.insertOne({ ...amp });
-      created += 1;
-    }
+    if; (!exists) {
+      await amps.insertOne(amp);
+      created++;
+    };
   }
   res.json({ created });
-});
-
-app.listen(PORT, () => {
-  console.log(`Presets service listening on port ${PORT}`);
 });
