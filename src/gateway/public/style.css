@@ -1,0 +1,18 @@
+:root { --bg: #14213d; --card: #1d2d50; --text: #f1f4f9; --muted: #9aa7bd; --accent: #0fa3b1; --danger: #e4572e; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+header { display: flex; align-items: center; gap: 1.5rem; padding: .8rem 1.5rem; background: #0d1730; flex-wrap: wrap; }
+.brand { font-size: 1.4rem; font-weight: 700; color: var(--accent); text-decoration: none; }
+nav { display: flex; gap: 1rem; }
+nav a { color: var(--text); text-decoration: none; }
+nav a:hover { color: var(--accent); }
+main { max-width: 900px; margin: 1.5rem auto; padding: 0 1rem; }
+input { background: #0d1730; color: var(--text); border: 1px solid #33456e; border-radius: 6px; padding: .6rem; font: inherit; width: 100%; }
+.list { display: grid; gap: .6rem; margin-top: 1rem; }
+.card { background: var(--card); border-radius: 8px; padding: .8rem 1rem; }
+.card a { color: var(--text); text-decoration: none; font-weight: 600; }
+.card a:hover { color: var(--accent); }
+.muted { color: var(--muted); font-size: .9rem; }
+.error { color: var(--danger); }
+#message { margin: 0; padding: .6rem 1.5rem; background: var(--accent); color: #fff; }
+#message.error { background: var(--danger); }

@@ -1,6 +1,8 @@
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
+const __filename = fileURLToPath(import.meta.url);
 const PORT = Number(process.env.PORT ?? 8080);
 const CATALOG_URL = process.env.CATALOG_URL ?? 'http://localhost:8000';
 const PRESETS_URL = process.env.PRESETS_URL ?? 'http://localhost:3000';
@@ -56,6 +58,9 @@ app.post('/api/seed', async (req, res) => {
     res.status(502).json({ error: error.message });
   }
 });
+
+const publicDir = fileURLToPath(new URL('./public', import.meta.url));
+app.use(express.static(publicDir));
 
 app.listen(PORT, () => {
   console.log(`Gateway listening on http://localhost:${PORT}`);
