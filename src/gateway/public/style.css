@@ -16,3 +16,13 @@ input { background: #0d1730; color: var(--text); border: 1px solid #33456e; bord
 .error { color: var(--danger); }
 #message { margin: 0; padding: .6rem 1.5rem; background: var(--accent); color: #fff; }
 #message.error { background: var(--danger); }
+button, .button { background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: .5rem 1rem; cursor: pointer; font: inherit; text-decoration: none; display: inline-block; }
+button.secondary { background: transparent; border: 1px solid var(--muted); color: var(--text); }
+button.danger { background: var(--danger); }
+select, textarea { background: #0d1730; color: var(--text); border: 1px solid #33456e; border-radius: 6px; padding: .5rem; font: inherit; width: 100%; }
+.card { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.actions { display: flex; gap: .5rem; }
+form.panel { background: var(--card); padding: 1rem; border-radius: 8px; margin: 1rem 0; display: grid; gap: .8rem; }
+.knob { display: grid; grid-template-columns: 90px 1fr 40px; align-items: center; gap: .6rem; }
+.knob input { padding: 0; }
+a.back { color: var(--muted); text-decoration: none; }
