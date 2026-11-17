@@ -34,6 +34,14 @@ function notify(text, isError = false) {
 
 const songInfo = (song) => [song.artist, song.album, song.year].filter(Boolean).join(' · ');
 const settingsSummary = (settings) => Object.entries(settings).map(([k, v]) => `${k} ${v}`).join(' · ');
+const quote = (text) => `"${text.trim().replace(/"/g, '\\"')}"`;
+
+function musicBrainzQuery(title, artist) {
+  return [
+    title.trim() && `recording:${quote(title)}`,
+    artist.trim() && `artist:${quote(artist)}`,
+  ].filter(Boolean).join(' AND ');
+}
 
 async function viewSearch() {
   const input = h('input', { type: 'search', placeholder: 'Search by title or artist...', 'aria-label': 'Search songs' });
@@ -42,7 +50,7 @@ async function viewSearch() {
   async function load() {
     const songs = await api(`/songs?q=${encodeURIComponent(input.value)}`);
     if (!songs.length) {
-      list.replaceChildren(h('p', { class: 'muted' }, 'No songs found.'));
+      list.replaceChildren(h('p', { class: 'muted' }, 'No songs found. Load the sample data or import songs from MusicBrainz below.'));
       return;
     }
     list.replaceChildren(...songs.map((song) =>
@@ -59,19 +67,42 @@ async function viewSearch() {
     timer = setTimeout(() => load().catch((error) => notify(error.message, true)), 250);
   });
 
-  app.replaceChildren(h('h1', {}, 'Search songs'), input, list);
+  const titleInput = h('input', { type: 'text', placeholder: 'Song title', 'aria-label': 'Song title' });
+  const artistInput = h('input', { type: 'text', placeholder: 'Artist', 'aria-label': 'Artist' });
+  const importForm = h('form', {
+    class: 'row',
+    onsubmit: async (event) => {
+      event.preventDefault();
+      const query = musicBrainzQuery(titleInput.value, artistInput.value);
+      if (!query) return notify('Write a title, an artist or both', true);
+      try {
+        const result = await api(`/songs/import?query=${encodeURIComponent(query)}`, { method: 'POST' });
+        notify(`MusicBrainz: ${result.found} found, ${result.created} new`);
+        input.value = titleInput.value || artistInput.value;
+        await load();
+      } catch (error) {
+        notify(error.message, true);
+      }
+    },
+  }, titleInput, artistInput, h('button', { type: 'submit' }, 'Import'));
+
+  app.replaceChildren(
+    h('h1', {}, 'Search songs'), input, list,
+    h('h2', {}, 'Import from MusicBrainz'), importForm);
   await load();
 }
 
-function presetCard(preset, { onEdit, onDelete }) {
+function presetCard(preset, { onEdit, onDelete, showSong = false }) {
   return h('div', { class: 'card' },
     h('div', {},
-      h('strong', {}, preset.amp_name),
-      h('div', { class: 'muted' }, settingsSummary(preset.settings)),
+      showSong
+        ? h('a', { href: `#/song/${preset.song_id}` }, [preset.song_title, preset.song_artist].filter(Boolean).join(' - '))
+        : h('strong', {}, preset.amp_name),
+      h('div', { class: 'muted' }, [showSong && preset.amp_name, settingsSummary(preset.settings)].filter(Boolean).join(' · ')),
       preset.notes ? h('div', { class: 'muted' }, preset.notes) : '',
       preset.rating ? h('div', {}, '★'.repeat(preset.rating)) : ''),
     h('div', { class: 'actions' },
-      h('button', { type: 'button', class: 'secondary', onclick: onEdit }, 'Edit'),
+      onEdit ? h('button', { type: 'button', class: 'secondary', onclick: onEdit }, 'Edit') : '',
       h('button', {
         type: 'button',
         class: 'danger',
@@ -89,14 +120,19 @@ async function viewSong(id) {
   ]);
 
   if (!amps.length) {
-    app.replaceChildren(h('h1', {}, song.title), h('p', { class: 'muted' }, 'There are no amps yet.'));
+    app.replaceChildren(h('h1', {}, song.title), h('p', { class: 'muted' }, 'There are no amps yet. Click "Load sample data" first.'));
     return;
   }
 
   let editing = null;
 
-  const ampSelect = h('select', { 'aria-label': 'Amp' },
-    amps.map((amp) => h('option', { value: amp.id }, `${amp.brand} ${amp.model}`)));
+  const groups = [['amp', 'Amps'], ['pedal', 'Pedals']]
+    .map(([type, label]) => [label, amps.filter((amp) => amp.type === type)])
+    .filter(([, list]) => list.length);
+  const ampSelect = h('select', { 'aria-label': 'Amp or pedal' },
+    groups.map(([label, list]) =>
+      h('optgroup', { label },
+        list.map((amp) => h('option', { value: amp.id }, `${amp.brand} ${amp.model}`)))));
   const knobs = h('div', {});
   const notes = h('textarea', { rows: 2, maxlength: 500, placeholder: 'Notes (guitar, pickup, tricks...)' });
   const rating = h('select', { 'aria-label': 'Rating' },
@@ -190,8 +226,26 @@ async function viewSong(id) {
     form);
 }
 
+async function viewPresets() {
+  const presets = await api('/presets');
+  app.replaceChildren(
+    h('h1', {}, 'My presets'),
+    h('div', { class: 'list' },
+      presets.length
+        ? presets.map((preset) => presetCard(preset, {
+          showSong: true,
+          onDelete: async () => {
+            await api(`/presets/${preset.id}`, { method: 'DELETE' });
+            notify('Preset deleted');
+            await viewPresets();
+          },
+        }))
+        : h('p', { class: 'muted' }, 'You have no presets yet. Search a song and save the first one.')));
+}
+
 const routes = [
   [/^#\/song\/(\d+)$/, viewSong],
+  [/^#\/presets$/, viewPresets],
   [/^#\/?$/, viewSearch],
 ];
 
@@ -206,11 +260,21 @@ async function route() {
         return;
       }
     }
-    app.replaceChildren(h('p', { class: 'muted' }, 'This page is not ready yet.'));
+    app.replaceChildren(h('p', { class: 'muted' }, 'Page not found.'));
   } catch (error) {
     app.replaceChildren(h('p', { class: 'error' }, error.message));
   }
 }
+
+document.querySelector('#seed').addEventListener('click', async () => {
+  try {
+    const result = await api('/seed', { method: 'POST' });
+    notify(`Sample data loaded: ${result.songs.created} songs, ${result.amps.created} amps`);
+    await route();
+  } catch (error) {
+    notify(error.message, true);
+  }
+});
 
 window.addEventListener('hashchange', route);
 route();

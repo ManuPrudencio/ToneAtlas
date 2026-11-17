@@ -3,7 +3,7 @@
 body { margin: 0; font-family: system-ui, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
 header { display: flex; align-items: center; gap: 1.5rem; padding: .8rem 1.5rem; background: #0d1730; flex-wrap: wrap; }
 .brand { font-size: 1.4rem; font-weight: 700; color: var(--accent); text-decoration: none; }
-nav { display: flex; gap: 1rem; }
+nav { display: flex; gap: 1rem; flex: 1; }
 nav a { color: var(--text); text-decoration: none; }
 nav a:hover { color: var(--accent); }
 main { max-width: 900px; margin: 1.5rem auto; padding: 0 1rem; }
@@ -26,3 +26,8 @@ form.panel { background: var(--card); padding: 1rem; border-radius: 8px; margin:
 .knob { display: grid; grid-template-columns: 90px 1fr 40px; align-items: center; gap: .6rem; }
 .knob input { padding: 0; }
 a.back { color: var(--muted); text-decoration: none; }
+[hidden] { display: none !important; }
+.row { display: flex; gap: .5rem; margin: .5rem 0 1rem; flex-wrap: wrap; }
+.row input { flex: 1; min-width: 180px; }
+h2 { margin-top: 2rem; }
+form.panel h2 { margin: 0; }
