@@ -17,6 +17,8 @@ const SAMPLE_GEAR = [
   { brand: 'Boss', model: 'CE-2 Chorus', type: 'pedal', controls: ['rate', 'depth'] },
   { brand: 'Boss', model: 'DD-3 Digital Delay', type: 'pedal', controls: ['level', 'feedback', 'time'] },
   { brand: 'MXR', model: 'Phase 90', type: 'pedal', controls: ['speed'] },
+  { brand: 'Boss', model: 'CE-1 Chorus Ensemble', type: 'pedal', controls: ['level', 'intensity', 'depth', 'rate'] },
+  { brand: 'Ibanez', model: 'WH10 Wah', type: 'pedal', controls: ['depth', 'position'] },
 ];
 
 const client = new MongoClient(MONGO_URL);
@@ -122,6 +124,15 @@ app.get('/presets', async (req, res) => {
   }
   const list = await presets.find(filter).sort({ created_at: -1 }).toArray();
   res.json(list.map(serialize));
+});
+
+app.delete('/presets', async (req, res) => {
+  const songId = Number(req.query.song_id);
+  if (req.query.song_id === undefined || !Number.isInteger(songId)) {
+    return res.status(400).json({ error: 'song_id is required to delete presets in bulk' });
+  }
+  const { deletedCount } = await presets.deleteMany({ song_id: songId });
+  res.json({ deleted: deletedCount });
 });
 
 app.get('/presets/:id', async (req, res) => {
