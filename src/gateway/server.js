@@ -23,6 +23,22 @@ const proxy = (target, pathFilter) =>
     },
   });
 
+app.delete('/api/songs/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!/^\d+$/.test(id)) return res.status(404).json({ error: 'Song not found' });
+  try {
+    const songResponse = await fetch(`${CATALOG_URL}/songs/${id}`, { method: 'DELETE' });
+    if (songResponse.status === 404) return res.status(404).json({ error: 'Song not found' });
+    if (!songResponse.ok) throw new Error(`catalog answered ${songResponse.status}`);
+    const presetsResponse = await fetch(`${PRESETS_URL}/presets?song_id=${id}`, { method: 'DELETE' });
+    if (!presetsResponse.ok) throw new Error(`song deleted, but presets answered ${presetsResponse.status}`);
+    const { deleted } = await presetsResponse.json();
+    res.json({ deleted_song: Number(id), deleted_presets: deleted });
+  } catch (error) {
+    res.status(502).json({ error: error.message });
+  }
+});
+
 app.use(proxy(CATALOG_URL, '/api/songs'));
 app.use(proxy(PRESETS_URL, ['/api/amps', '/api/presets']));
 
@@ -64,4 +80,4 @@ app.use(express.static(publicDir));
 
 app.listen(PORT, () => {
   console.log(`Gateway listening on http://localhost:${PORT}`);
-});
+});

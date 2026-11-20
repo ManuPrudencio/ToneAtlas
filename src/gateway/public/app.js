@@ -164,7 +164,22 @@ async function viewSearch() {
         h('div', {},
           h('a', { href: `#/song/${song.id}` }, song.title),
           h('div', { class: 'muted' }, songInfo(song))),
-        h('a', { class: 'button', href: `#/song/${song.id}` }, 'Presets'))));
+        h('div', { class: 'actions' },
+          h('a', { class: 'button', href: `#/song/${song.id}` }, 'Presets'),
+          h('button', {
+            type: 'button',
+            class: 'danger',
+            'aria-label': `Delete ${song.title}`,
+            onclick: () => deleteSong(song).catch((error) => notify(error.message, true)),
+          }, 'Delete')))));
+  }
+
+  async function deleteSong(song) {
+    if (!confirm(`Delete "${song.title}" and all its presets?`)) return;
+    const result = await api(`/songs/${song.id}`, { method: 'DELETE' });
+    const removed = result.deleted_presets;
+    notify(`Song deleted${removed ? ` (and ${removed} preset${removed === 1 ? '' : 's'})` : ''}`);
+    await load();
   }
 
   let timer;

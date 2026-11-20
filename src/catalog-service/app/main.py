@@ -89,6 +89,16 @@ def get_song(song_id: int):
         return song
 
 
+@app.delete("/songs/{song_id}", status_code=204)
+def delete_song(song_id: int):
+    with Session(engine) as session:
+        song = session.get(Song, song_id)
+        if song is None:
+            raise HTTPException(status_code=404, detail="Song not found")
+        session.delete(song)
+        session.commit()
+
+
 @app.post("/songs/seed")
 def seed_songs():
     created = 0
@@ -137,4 +147,4 @@ def import_from_musicbrainz(query: str = Query(..., min_length=2)):
                 session.add(Song(**data))
                 created += 1
         session.commit()
-    return {"found": len(recordings), "created": created}
+    return {"found": len(recordings), "created": created}
